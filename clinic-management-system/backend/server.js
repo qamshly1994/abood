@@ -12,10 +12,18 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('frontend'));
 
+// Force IPv4 and proper binding
+const host = '0.0.0.0';
+const port = process.env.PORT || 3000;
+
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/clinic', {
     useNewUrlParser: true,
     useUnifiedTopology: true
+}).then(() => {
+    console.log('✅ Connected to MongoDB');
+}).catch((error) => {
+    console.error('❌ MongoDB connection error:', error);
 });
 
 // Doctor Schema
@@ -58,7 +66,7 @@ const Appointment = mongoose.model('Appointment', appointmentSchema);
 
 // Routes
 
-// Register Doctor (للاستخدام مرة واحدة فقط - إنشاء الأطباء)
+// Register Doctor
 app.post('/api/register-doctor', async (req, res) => {
     try {
         const { username, password, name, specialization, email, phone } = req.body;
@@ -144,6 +152,16 @@ const authenticateToken = (req, res, next) => {
         next();
     });
 };
+
+// Test route
+app.get('/api/test', (req, res) => {
+    res.json({ message: 'API is working!' });
+});
+
+// Home route
+app.get('/', (req, res) => {
+    res.send('🚀 Clinic Management System API is running');
+});
 
 // Patients CRUD
 app.get('/api/patients', authenticateToken, async (req, res) => {
@@ -239,10 +257,15 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
     try {
         const totalPatients = await Patient.countDocuments();
         const totalAppointments = await Appointment.countDocuments();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
         const todayAppointments = await Appointment.countDocuments({
             date: {
-                $gte: new Date().setHours(0, 0, 0),
-                $lt: new Date().setHours(23, 59, 59)
+                $gte: today,
+                $lt: tomorrow
             }
         });
         
@@ -256,7 +279,9 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
     }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+// Start server
+app.listen(port, host, () => {
+    console.log(`🚀 Server running at http://${host}:${port}`);
+    console.log(`📁 Serving static files from /frontend`);
+    console.log(`🔗 API endpoints available at /api/*`);
 });
